@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  landing-gen:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/db.sqlite
+      - UPLOAD_DIR=/app/data/uploads
+      - EXPORT_DIR=/app/data/exports
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-to-a-secure-random-string}
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - APP_USER=${APP_USER:-aydin}
+      - APP_PASS=${APP_PASS:-strongpassword}
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_API_ENDPOINT=${AI_API_ENDPOINT:-}
+      - AI_MODEL=${AI_MODEL:-gpt-4}
+      - WP_PLAYGROUND_URL=${WP_PLAYGROUND_URL:-https://playground.wordpress.net}
+      - FORBIDDEN_WORDS=${FORBIDDEN_WORDS:-ai,gpt,generator,artificial,intelligence,chatgpt,openai}
+      - CSRF_SECRET=${CSRF_SECRET:-another-secure-random-string}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-900000}
+      - PREVIEW_TOKEN_EXPIRY=${PREVIEW_TOKEN_EXPIRY:-172800}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-10485760}
+    volumes:
+      - landing_gen_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service with hot reload
+  landing-gen-dev:
+    build:
+      context: .
+      target: deps
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=file:/app/data/db.sqlite
+      - UPLOAD_DIR=/app/data/uploads
+      - EXPORT_DIR=/app/data/exports
+      - SESSION_SECRET=development-secret-key
+      - BASE_URL=http://localhost:3000
+      - APP_USER=aydin
+      - APP_PASS=strongpassword
+      - AI_API_KEY=${AI_API_KEY:-}
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - landing_gen_data:/app/data
+    command: npm run dev
+    profiles:
+      - dev
+
+volumes:
+  landing_gen_data:
+    driver: local
