@@ -1,5 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// prisma/schema.prisma
+// Prisma 5.x — SQLite
+// Not: Daha önce Json alanları için String tutuluyordu. @db.Text kaldırıldı.
+// İstersen ilgili alanları tekrar Json tipine çevirebiliriz.
 
 generator client {
   provider = "prisma-client-js"
@@ -7,25 +9,31 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // örn: file:./dev.db
 }
 
-model Project {
-  id         String   @id @default(cuid())
-  name       String
-  slug       String   @unique
-  sector     String?
-  locale     String   @default("tr")
-  // Json -> String (text)
-  styleTags  String   @default("[]") @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+/* ===========================
+   MODELLER
+   =========================== */
 
-  // Relations
-  brand        Brand?
-  assets       Assets?
-  content      Content?
-  layout       Layout?
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  sector      String?
+  locale      String   @default("tr")
+  // Json -> String (text benzeri)
+  styleTags   String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 1-1 ilişkiler (karşı tarafta projectId UNIQUE)
+  brand       Brand?
+  assets      Assets?
+  content     Content?
+  layout      Layout?
+
+  // 1-N ilişkiler
   generated    Generated[]
   exports      Export[]
   chatMessages ChatMessage[]
@@ -34,104 +42,121 @@ model Project {
 }
 
 model Brand {
-  id           String  @id @default(cuid())
-  projectId    String  @unique
-  primary      String?
-  secondary    String?
-  // Json -> String (text)
-  palette      String  @default("[]")  @db.Text
-  headingFont  String  @default("{}")  @db.Text
-  bodyFont     String  @default("{}")  @db.Text
-  logoPath     String?
+  id          String  @id @default(cuid())
+  projectId   String  @unique
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Renk/palet ve font bilgileri (Json -> String)
+  primary     String? // HEX veya isim
+  secondary   String?
+  palette     String  @default("[]")  // örn. ["#111","#222",...]
+  headingFont String  @default("{}")  // örn. { family, weight }
+  bodyFont    String  @default("{}")
 
   @@map("brands")
 }
 
 model Assets {
-  id           String   @id @default(cuid())
-  projectId    String   @unique
-  heroPath     String?
-  // Json -> String (text)
-  galleryPaths String   @default("[]") @db.Text
+  id           String  @id @default(cuid())
+  projectId    String  @unique
+  project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Medya yolları (Json -> String)
+  logoPath     String?           // tekil logo yolu
+  galleryPaths String  @default("[]") // ["path1","path2",...]
 
   @@map("assets")
 }
 
 model Content {
-  id        String @id @default(cuid())
-  projectId String @unique
-  headline  String?
-  // Json -> String (text)
-  benefits  String  @default("[]")  @db.Text
-  cta       String?
-  // Json -> String (text)
-  contact   String  @default("{}")  @db.Text
-
+  id        String  @id @default(cuid())
+  projectId String  @unique
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Metin alanları
+  title       String?
+  subtitle    String?
+  // Json -> String
+  benefits    String  @default("[]")  // ["fast","cheap",...]
+  contact     String  @default("{}")  // { email, phone, ... }
+  heroText    String?
+  about       String?
 
   @@map("contents")
 }
 
 model Layout {
-  id        String @id @default(cuid())
-  projectId String @unique
-  // Json -> String (text)
-  sections  String @default("[]") @db.Text
-
+  id        String  @id @default(cuid())
+  projectId String  @unique
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Tema/section konfigürasyonları (Json -> String)
+  sections  String  @default("[]") // [{type:"hero"...}, ...]
+  grid      String?                // opsiyonel grid ayarları
 
   @@map("layouts")
 }
 
 model Generated {
-  id            String   @id @default(cuid())
-  projectId     String
-  // Json -> String (text)
-  themeJson     String   @default("{}") @db.Text
-  // Json -> String (text)
-  patterns      String   @default("[]") @db.Text
-  templateFront String   @default("")
-  // Json -> String (text)
-  meta          String   @default("{}") @db.Text
-  createdAt     DateTime @default(now())
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Üretilen paket/sürüm bilgileri
+  version    Int      @default(1)
+  // Json -> String
+  themeJson  String   @default("{}")
+  patterns   String   @default("[]")
+  meta       String   @default("{}")
 
+  createdAt  DateTime @default(now())
+
+  @@index([projectId])
   @@map("generated")
 }
 
 model Export {
-  id        String   @id @default(cuid())
-  projectId String
-  // enum -> String
-  kind      String   @default("WP_THEME")
-  zipPath   String
-  sizeKB    Int
-  checksum  String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // export bilgileri
+  kind       String            // örn. "zip", "html", "pdf"
+  filePath   String            // saklanan dosya yolu
+  status     ExportStatus      @default(PENDING)
+  message    String?           // hata/uyarı vs.
+  createdAt  DateTime          @default(now())
 
+  @@index([projectId])
   @@map("exports")
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  projectId String?
-  // enum -> String
-  role      String
-  content   String
-  createdAt DateTime  @default(now())
+  id         String        @id @default(cuid())
+  projectId  String
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role       ChatRole
+  content    String        // mesaj gövdesi (gerekirse uzun)
+  meta       String  @default("{}") // Json -> String
+  createdAt  DateTime @default(now())
 
+  @@index([projectId, createdAt])
   @@map("chat_messages")
 }
 
-// enum'lar SQLite connector tarafından desteklenmediği için kaldırıldı:
-// enum ExportKind { WP_THEME }
-// enum MessageRole { USER, ASSISTANT, TOOL }
+/* ===========================
+   ENUM'LAR
+   =========================== */
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ExportStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
