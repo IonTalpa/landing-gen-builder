@@ -1,48 +1,32 @@
-import * as React from 'react';
-import { clsx } from 'clsx';
-import { Check } from 'lucide-react';
+"use client";
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-export interface CheckboxProps {
+type CheckboxProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-  disabled?: boolean;
-  id?: string;
-  className?: string;
-}
+  indicator?: React.ReactNode;
+};
 
 const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
-  ({ checked = false, onCheckedChange, disabled = false, id, className, ...props }, ref) => {
-    const handleClick = () => {
-      if (!disabled && onCheckedChange) {
-        onCheckedChange(!checked);
-      }
-    };
-
+  ({ checked = false, className, indicator, ...props }, ref) => {
     return (
       <button
         ref={ref}
-        type=\"button\"
-        role=\"checkbox\"
+        type="button"
+        role="checkbox"
         aria-checked={checked}
-        id={id}
-        disabled={disabled}
-        onClick={handleClick}
-        className={clsx(
-          'peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-          checked 
-            ? 'bg-primary text-primary-foreground' 
-            : 'bg-background',
+        className={cn(
+          "inline-flex h-5 w-5 items-center justify-center rounded border",
+          checked ? "bg-foreground text-background" : "bg-background",
           className
         )}
         {...props}
       >
-        {checked && (
-          <Check className=\"h-3 w-3\" />
-        )}
+        {checked ? indicator ?? <span aria-hidden>✓</span> : null}
       </button>
     );
   }
 );
-Checkbox.displayName = 'Checkbox';
+Checkbox.displayName = "Checkbox";
 
-export { Checkbox };"
+export { Checkbox };
