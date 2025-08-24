@@ -43,7 +43,7 @@ Landing-Gen is a powerful monorepo web application that enables users to create 
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/IonTalpa/landing-gen-builder.git
    cd landing-gen
    ```
 
@@ -62,7 +62,7 @@ Landing-Gen is a powerful monorepo web application that enables users to create 
    # Required
    SESSION_SECRET="your-secure-session-secret-here"
    CSRF_SECRET="your-csrf-secret-here"
-   APP_USER="aydin"
+   APP_USER="username"
    APP_PASS="your-secure-password"
    
    # Optional (for AI features)
