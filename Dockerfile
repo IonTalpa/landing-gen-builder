@@ -1,73 +1,78 @@
-# Landing-Gen Dockerfile
+# Landing-Gen Dockerfile (Fixed)
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# --- deps: sadece bağımlılıkları kur, script ÇALIŞTIRMA ---
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# Prisma için openssl, sharp için libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Lockfile varsa kullan, yoksa sorun etme
 COPY package.json package-lock.json* ./
-#RUN npm ci --only=production && npm cache clean --force
-RUN npm install
 
-# Rebuild the source code only when needed
+# prepare/postinstall gibi script'leri KAPAT (schema henüz yok)
+RUN npm install --ignore-scripts
+
+# --- builder: kaynak + prisma + build ---
 FROM base AS builder
 WORKDIR /app
+
+# node_modules'ı taşı
 COPY --from=deps /app/node_modules ./node_modules
+
+# Tüm kaynak dosyaları kopyala
 COPY . .
 
-# Generate Prisma client
+# Prisma client üret (artık prisma/schema.prisma burada var)
 RUN npx prisma generate
 
-# Build the application
+# Next.js build
 RUN npm run build
 
-# Production image, copy all the files and run next
+# --- runner: production image ---
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Disable telemetry during runtime.
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Sistem kullanıcıları
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
 
-# Copy the public folder
+# Public dosyalar
 COPY --from=builder /app/public ./public
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
+# Prerender cache klasörü
+RUN mkdir .next && chown nextjs:nodejs .next
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# Next standalone çıktısı
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma files
+# Prisma runtime dosyaları
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Create data directories with proper permissions
-RUN mkdir -p /app/data/uploads /app/data/exports /app/data && \
-    chown -R nextjs:nodejs /app/data
+# Healthcheck scriptini da kopyala (aksi halde HEALTHCHECK hata verir)
+COPY --from=builder /app/healthcheck.js ./healthcheck.js
 
-# Create volume mount points
+# Kalıcı veri klasörleri
+RUN mkdir -p /app/data/uploads /app/data/exports /app/data \
+ && chown -R nextjs:nodejs /app/data
+
+# Volume mount
 VOLUME ["/app/data"]
 
 USER nextjs
-
 EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node healthcheck.js || exit 1
 
+# Next.js standalone entrypoint
 CMD ["node", "server.js"]
