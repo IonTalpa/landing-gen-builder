@@ -9,12 +9,12 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL") // örn: file:./dev.db
+  url      = env("DATABASE_URL") // örn: file:/data/dev.db
 }
 
-/* ===========================
-   MODELLER
-   =========================== */
+// ===========================
+// MODELLER
+// ===========================
 
 model Project {
   id          String   @id @default(cuid())
@@ -145,9 +145,9 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
-/* ===========================
-   ENUM'LAR
-   =========================== */
+// ===========================
+// ENUM'LAR
+// ===========================
 
 enum ChatRole {
   USER
