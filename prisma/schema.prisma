@@ -16,10 +16,11 @@ model Project {
   slug       String   @unique
   sector     String?
   locale     String   @default("tr")
-  styleTags  Json     @default("[]") // Array of style descriptors
+  // Json -> String (text)
+  styleTags  String   @default("[]") @db.Text
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
+
   // Relations
   brand        Brand?
   assets       Assets?
@@ -28,33 +29,35 @@ model Project {
   generated    Generated[]
   exports      Export[]
   chatMessages ChatMessage[]
-  
+
   @@map("projects")
 }
 
 model Brand {
   id           String  @id @default(cuid())
   projectId    String  @unique
-  primary      String? // Primary brand color
-  secondary    String? // Secondary brand color
-  palette      Json    @default("[]") // Array of {slug, color, locked?, source?}
-  headingFont  Json    @default("{}") // Font configuration
-  bodyFont     Json    @default("{}") // Font configuration
-  logoPath     String? // Path to uploaded logo
-  
+  primary      String?
+  secondary    String?
+  // Json -> String (text)
+  palette      String  @default("[]")  @db.Text
+  headingFont  String  @default("{}")  @db.Text
+  bodyFont     String  @default("{}")  @db.Text
+  logoPath     String?
+
   project      Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
   @@map("brands")
 }
 
 model Assets {
   id           String   @id @default(cuid())
   projectId    String   @unique
-  heroPath     String?  // Hero image path
-  galleryPaths Json     @default("[]") // Array of gallery image paths
-  
+  heroPath     String?
+  // Json -> String (text)
+  galleryPaths String   @default("[]") @db.Text
+
   project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
   @@map("assets")
 }
 
@@ -62,71 +65,73 @@ model Content {
   id        String @id @default(cuid())
   projectId String @unique
   headline  String?
-  benefits  Json   @default("[]") // Array of benefit objects
-  cta       String? // Call-to-action text
-  contact   Json   @default("{}") // {phone, whatsapp, address}
-  
+  // Json -> String (text)
+  benefits  String  @default("[]")  @db.Text
+  cta       String?
+  // Json -> String (text)
+  contact   String  @default("{}")  @db.Text
+
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
   @@map("contents")
 }
 
 model Layout {
   id        String @id @default(cuid())
   projectId String @unique
-  sections  Json   @default("[]") // Ordered array of section names
-  
+  // Json -> String (text)
+  sections  String @default("[]") @db.Text
+
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
   @@map("layouts")
 }
 
 model Generated {
-  id           String   @id @default(cuid())
-  projectId    String
-  themeJson    Json     @default("{}") // WordPress theme.json
-  patterns     Json     @default("[]") // Gutenberg block patterns
-  templateFront String  @default("") // Front page template
-  meta         Json     @default("{}") // Generation metadata
-  createdAt    DateTime @default(now())
-  
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  id            String   @id @default(cuid())
+  projectId     String
+  // Json -> String (text)
+  themeJson     String   @default("{}") @db.Text
+  // Json -> String (text)
+  patterns      String   @default("[]") @db.Text
+  templateFront String   @default("")
+  // Json -> String (text)
+  meta          String   @default("{}") @db.Text
+  createdAt     DateTime @default(now())
+
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@map("generated")
 }
 
 model Export {
-  id        String      @id @default(cuid())
+  id        String   @id @default(cuid())
   projectId String
-  kind      ExportKind  @default(WP_THEME)
-  zipPath   String      // Path to exported ZIP
-  sizeKB    Int         // File size in KB
-  checksum  String      // File integrity checksum
-  createdAt DateTime    @default(now())
-  
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  // enum -> String
+  kind      String   @default("WP_THEME")
+  zipPath   String
+  sizeKB    Int
+  checksum  String
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@map("exports")
 }
 
 model ChatMessage {
-  id        String      @id @default(cuid())
+  id        String   @id @default(cuid())
   projectId String?
-  role      MessageRole
+  // enum -> String
+  role      String
   content   String
-  createdAt DateTime    @default(now())
-  
-  project   Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  createdAt DateTime  @default(now())
+
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   @@map("chat_messages")
 }
 
-enum ExportKind {
-  WP_THEME
-}
-
-enum MessageRole {
-  USER
-  ASSISTANT
-  TOOL
-}
+// enum'lar SQLite connector tarafından desteklenmediği için kaldırıldı:
+// enum ExportKind { WP_THEME }
+// enum MessageRole { USER, ASSISTANT, TOOL }
